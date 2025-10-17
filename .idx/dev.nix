@@ -1,53 +1,63 @@
-# To learn more about how to use Nix to configure your environment
-# see: https://developers.google.com/idx/guides/customize-idx-env
 { pkgs, ... }: {
-  # Which nixpkgs channel to use.
-  channel = "stable-24.05"; # or "unstable"
-  # Use https://search.nixos.org/packages to find packages
+  # Add Nix packages here
+  # Lists in Nix are space-separated, not comma-separated.
   packages = [
-    # pkgs.go
-    # pkgs.python311
-    # pkgs.python311Packages.pip
-    # pkgs.nodejs_20
-    # pkgs.nodePackages.nodemon
+    pkgs.nodejs_20
+    pkgs.firebase-tools
+    pkgs.python3
   ];
-  # Sets environment variables in the workspace
+
+  # The global env block is not used for the service account to avoid build issues.
   env = {};
+
+  # Add VS Code extensions
   idx = {
-    # Search for the extensions you want on https://open-vsx.org/ and use "publisher.id"
     extensions = [
-      # "vscodevim.vim"
-      "google.gemini-cli-vscode-ide-companion"
+      "dbaeumer.vscode-eslint"
+      "esbenp.prettier-vscode"
     ];
-    # Enable previews
+
+    workspace = {
+      # Commands to run on workspace creation
+      onCreate = {
+        install-functions-deps = "npm install --prefix agileflow/functions";
+        install-usr-functions-deps = "npm install --prefix agileflow/usr/src/app/functions";
+        install-frontend-deps = "npm install --prefix agileflow/src";
+      };
+
+      # onStart is removed to prevent emulators from starting automatically
+      onStart = {};
+    };
+
+    # Configure web previews
     previews = {
       enable = true;
       previews = {
-        # web = {
-        #   # Example: run "npm run dev" with PORT set to IDX's defined port for previews,
-        #   # and show it in IDX's web preview panel
-        #   command = ["npm" "run" "dev"];
-        #   manager = "web";
-        #   env = {
-        #     # Environment variables to set for your server
-        #     PORT = "$PORT";
-        #   };
-        # };
-      };
-    };
-    # Workspace lifecycle hooks
-    workspace = {
-      # Runs when a workspace is first created
-      onCreate = {
-        # Example: install JS dependencies from NPM
-        # npm-install = "npm install";
-        # Open editors for the following files by default, if they exist:
-        default.openFiles = [ ".idx/dev.nix" "README.md" ];
-      };
-      # Runs when the workspace is (re)started
-      onStart = {
-        # Example: start a background task to watch and re-build backend code
-        # watch-backend = "npm run watch-backend";
+        web = {
+          # We inject the environment variables directly into the command that runs the
+          # dev server. This is more reliable than using the global `env` block.
+          command = [
+            "env"
+            "GOOGLE_APPLICATION_CREDENTIALS=/workspace/.secret/gcp-sa-key.json"
+            "NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSyAk1sXBhKN58lj0aZxwFcmp-F0bGPoEYSc"
+            "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=agileflow-mlf18.firebaseapp.com"
+            "NEXT_PUBLIC_FIREBASE_PROJECT_ID=agileflow-mlf18"
+            "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=agileflow-mlf18.firebasestorage.app"
+            "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=503172782024"
+            "NEXT_PUBLIC_FIREBASE_APP_ID=1:503172782024:web:a925bbac9fd802c28512fd"
+            "npm"
+            "--prefix"
+            "agileflow/src"
+            "run"
+            "dev"
+            "--"
+            "--port"
+            "$PORT"
+            "--hostname"
+            "0.0.0.0"
+          ];
+          manager = "web";
+        };
       };
     };
   };

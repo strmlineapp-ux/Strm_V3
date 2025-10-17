@@ -1,0 +1,20 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // WARNING: TEMPORARY AND INSECURE RULE
+    // This rule allows anyone to read the users collection.
+    // It is a temporary workaround to bypass the Google Sign-in issue.
+    // This MUST be reverted before any production deployment.
+    match /users/{userId} {
+      allow get, list: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Allow read/write access to all other documents for any authenticated user.
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
