@@ -1,0 +1,196 @@
+
+
+'use client';
+
+import * as React from 'react';
+import { type Task, type Badge } from '@/types';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { TaskStatusBadge } from './task-status-badge';
+import { Badge as UiBadge } from '../ui/badge';
+import { useUser } from '@/context/user-context';
+import { PriorityBadge } from '../calendar/priority-badge';
+import { GoogleSymbol } from '../icons/google-symbol';
+
+
+const statusOrder: Task['status'][] = ['in_progress', 'awaiting_review', 'not_started', 'blocked', 'completed'];
+
+const statusLabels: Record<Task['status'], string> = {
+  in_progress: 'In Progress',
+  awaiting_review: 'Awaiting Review',
+  not_started: 'Not Started',
+  blocked: 'Blocked',
+  completed: 'Completed',
+};
+
+// Helper function to check if a date is today
+const isToday = (someDate: Date | string) => {
+    const d = new Date(someDate);
+    const today = new Date();
+    return d.getDate() === today.getDate() &&
+           d.getMonth() === today.getMonth() &&
+           d.getFullYear() === today.getFullYear();
+};
+
+// Helper function to format date
+const formatDate = (date: Date | string): string => {
+    return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(date));
+};
+
+
+export function TaskList({ tasks, limit, onEdit, onDelete }: { tasks: Task[], limit?: number, onEdit?: (task: Task) => void, onDelete?: (taskId: string) => void }) {
+  const { allBadgeCollections, allBadges } = useUser();
+
+  const taskPriorities = React.useMemo(() => {
+    const taskPriorityCollection = allBadgeCollections.find(c => c.applications?.includes('tasks'));
+    if (!taskPriorityCollection) return [];
+    return taskPriorityCollection.badgeIds.map(id => allBadges.find(b => b.id === id)).filter((b): b is Badge => !!b);
+  }, [allBadgeCollections, allBadges]);
+
+  const renderTable = (tasksToRender: Task[]) => (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>
+            <Button variant="default" className="-ml-4">
+              Task
+              <GoogleSymbol name="swap_vert" className="ml-2" />
+            </Button>
+          </TableHead>
+          <TableHead>Assigned To</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead>Priority</TableHead>
+          <TableHead>Due Date</TableHead>
+          <TableHead>
+            <span className="sr-only">Actions</span>
+          </TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {tasksToRender.map((task) => (
+          <TableRow key={task.taskId}>
+            <TableCell>{task.title}</TableCell>
+            <TableCell>
+              <div>
+                {task.assignedTo.map((user) => {
+                  const nameParts = user.displayName.split(' ');
+                  const formattedName = nameParts.length > 1 ? `${nameParts[0]} ${nameParts[1].charAt(0)}.` : nameParts[0];
+                  return <div key={user.userId}>{formattedName}</div>;
+                })}
+              </div>
+            </TableCell>
+            <TableCell>
+              <TaskStatusBadge status={task.status} />
+            </TableCell>
+            <TableCell>
+              <PriorityBadge priorityId={task.priority} />
+            </TableCell>
+            <TableCell>{isToday(task.dueDate) ? 'Today' : formatDate(new Date(task.dueDate))}</TableCell>
+            <TableCell>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button aria-haspopup="true" size="icon" variant="default">
+                    <GoogleSymbol name="more_horiz" />
+                    <span className="sr-only">Toggle menu</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                  <DropdownMenuItem onSelect={() => onEdit?.(task)}>Edit</DropdownMenuItem>
+                  <DropdownMenuItem>View Details</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="text-destructive" onSelect={() => onDelete?.(task.taskId)}>Delete</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+
+  const renderGroupedTasks = (tasksToGroup: Task[]) => {
+    const groupedTasks = tasksToGroup.reduce((acc, task) => {
+        const status = task.status;
+        if (!acc[status]) {
+            acc[status] = [];
+        }
+        acc[status].push(task);
+        return acc;
+    }, {} as Record<Task['status'], Task[]>);
+
+    return (
+        <div className="space-y-8">
+            {statusOrder.map(status => {
+                let tasksInGroup = groupedTasks[status];
+                if (!tasksInGroup || tasksInGroup.length === 0) return null;
+                
+                tasksInGroup = tasksInGroup.sort((a, b) => {
+                    const aDate = new Date(a.dueDate);
+                    const bDate = new Date(b.dueDate);
+                    const aIsToday = isToday(aDate);
+                    const bIsToday = isToday(bDate);
+                    if (aIsToday && !bIsToday) return -1;
+                    if (!aIsToday && bIsToday) return 1;
+            
+                    return aDate.getTime() - bDate.getTime();
+                });
+
+                return (
+                    <div key={status}>
+                        <h3 className="text-xl mb-4 flex items-center gap-2">
+                           <span>{statusLabels[status]}</span>
+                           <UiBadge variant="outline">{tasksInGroup.length}</UiBadge>
+                        </h3>
+                        <Card>
+                          <CardContent className="p-0">
+                            {renderTable(tasksInGroup)}
+                          </CardContent>
+                        </Card>
+                    </div>
+                );
+            })}
+        </div>
+    );
+  };
+  
+  if(limit) {
+    const sortedTasks = [...tasks].sort((a, b) => {
+        const aDate = new Date(a.dueDate);
+        const bDate = new Date(b.dueDate);
+        const aIsToday = isToday(aDate);
+        const bIsToday = isToday(bDate);
+
+        if (aIsToday && !bIsToday) return -1;
+        if (!aIsToday && bIsToday) return 1;
+
+        const statusAIndex = statusOrder.indexOf(a.status);
+        const statusBIndex = statusOrder.indexOf(b.status);
+
+        if (statusAIndex !== statusBIndex) {
+            return statusAIndex - statusBIndex;
+        }
+
+        return aDate.getTime() - bDate.getTime();
+    });
+    return renderTable(sortedTasks.slice(0, limit));
+  }
+
+  return renderGroupedTasks(tasks);
+}

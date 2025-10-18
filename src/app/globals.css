@@ -1,0 +1,196 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden; /* Prevent body-level scrolling */
+  }
+  
+  :root {
+    --background: 210 20% 95%;
+    --card: 210 20% 98%;
+    --popover: 210 20% 98%;
+    --primary: 210 70% 50%;
+    --primary-foreground: 0 0% 100%;
+    --foreground: 210 7% 40%;
+    --popover-foreground: 210 7% 40%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 20% 85%;
+    --input: 210 7% 40%;
+    --ring: 210 70% 50%;
+    --radius: 0.5rem;
+
+    --font-weight-thin: 100;
+    --font-weight-light: 300;
+    --font-weight-normal: 400;
+    --font-weight-medium: 500;
+    --font-weight-bold: 700;
+    --font-weight-emphasis: 500;
+    --emphasis-color: hsl(var(--foreground));
+    --emphasis-icon-fill: var(--global-icon-fill, 0);
+  }
+
+  .dark {
+    --background: 210 40% 9%;
+    --card: 210 40% 12%;
+    --popover: 210 40% 12%;
+    --primary: 25 88% 55%;
+    --primary-foreground: 0 0% 100%;
+    --foreground: 210 7% 60%;
+    --popover-foreground: 210 7% 60%;
+    --destructive: 0 62% 40%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 40% 15%;
+    --input: 210 7% 60%;
+    --ring: 25 88% 55%;
+    --emphasis-color: hsl(var(--foreground));
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-roboto), sans-serif;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+      font-family: var(--font-roboto), sans-serif;
+  }
+}
+
+@layer components {
+    .font-emphasis:hover,
+    .font-emphasis:focus,
+    .font-emphasis[data-state=open],
+    .font-emphasis[data-state=active] {
+        font-weight: var(--font-weight-emphasis) !important;
+    }
+    
+    .font-emphasis:hover .material-symbols-outlined,
+    .font-emphasis:focus .material-symbols-outlined,
+    .font-emphasis[data-state=open] .material-symbols-outlined,
+    .font-emphasis[data-state=active] .material-symbols-outlined {
+        font-variation-settings: 'FILL' var(--emphasis-icon-fill), 'wght' var(--font-weight-emphasis, 500), 'GRAD' var(--global-icon-grade, 0), 'opsz' var(--global-icon-optical-size, 24) !important;
+    }
+    
+    .font-emphasized {
+        font-weight: var(--font-weight-emphasis) !important;
+    }
+
+    .font-emphasized .material-symbols-outlined {
+        font-variation-settings: 'FILL' var(--emphasis-icon-fill), 'wght' var(--font-weight-emphasis, 500), 'GRAD' var(--global-icon-grade, 0), 'opsz' var(--global-icon-optical-size, 24) !important;
+    }
+    
+    body.bold-emphasis .font-emphasized {
+        color: hsl(var(--primary)) !important;
+    }
+
+    body.bold-emphasis .font-emphasis:hover,
+    body.bold-emphasis .font-emphasis:focus,
+    body.bold-emphasis .font-emphasis[data-state=open],
+    body.bold-emphasis .font-emphasis[data-state=active] {
+        color: hsl(var(--primary)) !important;
+    }
+    
+    body.bold-emphasis .font-emphasis:hover .material-symbols-outlined,
+    body.bold-emphasis .font-emphasis:focus .material-symbols-outlined,
+    body.bold-emphasis .font-emphasis[data-state=open] .material-symbols-outlined,
+    body.bold-emphasis .font-emphasis[data-state=active] .material-symbols-outlined,
+    body.bold-emphasis .font-emphasized .material-symbols-outlined {
+        color: hsl(var(--primary)) !important;
+    }
+
+    body:not(.icon-fill-emphasis) {
+        --emphasis-icon-fill: 1;
+    }
+    
+    body.icon-fill-emphasis {
+        --emphasis-icon-fill: 0;
+    }
+
+    .bold-emphasis .font-emphasis:hover,
+    .bold-emphasis .font-emphasis:focus,
+    .bold-emphasis .font-emphasis[data-state=open],
+    .bold-emphasis .font-emphasis[data-state=active] {
+      color: hsl(var(--primary));
+    }
+
+    .bold-emphasis .font-emphasis:hover .material-symbols-outlined,
+    .bold-emphasis .font-emphasis:focus .material-symbols-outlined,
+    .bold-emphasis .font-emphasis[data-state=open] .material-symbols-outlined,
+    .bold-emphasis .font-emphasis[data-state=active] .material-symbols-outlined {
+        color: hsl(var(--primary));
+    }
+
+    .bold-emphasis .font-emphasis:hover .material-symbols-outlined,
+    .bold-emphasis .font-emphasis:focus .material-symbols-outlined,
+    .bold-emphasis .font-emphasis[data-state=open] .material-symbols-outlined,
+    .bold-emphasis .font-emphasis[data-state=active] .material-symbols-outlined {
+        font-variation-settings: 'FILL' var(--global-icon-fill, 0), 'wght' var(--font-weight-emphasis, 500), 'GRAD' var(--global-icon-grade, 0), 'opsz' var(--global-icon-optical-size, 24) !important;
+    }
+}
+
+
+@layer utilities {
+  /* Force hide all scrollbars */
+  *::-webkit-scrollbar {
+    display: none;
+  }
+
+  * {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+
+  .lunch-break-pattern {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 5px,
+      hsl(var(--foreground) / 0.06) 5px,
+      hsl(var(--foreground) / 0.06) 10px
+    );
+  }
+
+  .center-and-scroll {
+    text-align: center;
+    overflow-x: auto;
+  }
+
+  .hue-gradient-track {
+    background: linear-gradient(to right, hsl(0, 100%, 50%), hsl(60, 100%, 50%), hsl(120, 100%, 50%), hsl(180, 100%, 50%), hsl(240, 100%, 50%), hsl(300, 100%, 50%), hsl(360, 100%, 50%));
+  }
+  
+  .hue-gradient-track::-webkit-slider-runnable-track {
+    height: 0.5rem;
+    border-radius: 0.25rem;
+  }
+  
+  .hue-gradient-track::-moz-range-track {
+    height: 0.5rem;
+    border-radius: 0.25rem;
+  }
+
+  .hue-gradient-track::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    height: 1.25rem; /* h-5 */
+    width: 1.25rem; /* w-5 */
+    border-radius: 9999px; /* rounded-full */
+    background: hsl(var(--card));
+    border: 2px solid hsl(var(--foreground));
+    margin-top: -0.375rem; /* (thumb height - track height) / -2 -> (20px - 8px) / -2 = -6px = -0.375rem */
+  }
+
+  .hue-gradient-track::-moz-range-thumb {
+    height: 1.25rem; /* h-5 */
+    width: 1.25rem; /* w-5 */
+    border-radius: 9999px; /* rounded-full */
+    background: hsl(var(--card));
+    border: 2px solid hsl(var(--foreground));
+  }
+}

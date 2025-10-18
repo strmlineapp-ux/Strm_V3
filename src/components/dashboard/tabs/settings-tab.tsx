@@ -1,0 +1,16 @@
+
+
+'use client';
+
+import { UserManagement } from '@/components/settings/user-management';
+import { GoogleSymbol } from '@/components/icons/google-symbol';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
+export function SettingsContent({ isActive }: { isActive: boolean }) {
+
+  return (
+    <div className="flex flex-col h-full gap-6 overflow-y-auto hide-scrollbar">
+      <UserManagement showSearch={true} isActive={isActive} />
+    </div>
+  );
+}

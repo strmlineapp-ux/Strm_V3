@@ -1,0 +1,240 @@
+
+
+'use client';
+
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { useUser } from '@/context/user-context';
+import { type Team, type User } from '@/types';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ScrollArea } from '../ui/scroll-area';
+import { useDroppable } from '@dnd-kit/core';
+import { useSortable, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { cn } from '@/lib/utils';
+import { GoogleSymbol } from '../icons/google-symbol';
+import { CardTemplate } from '@/components/common/card-template';
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { InlineEditor } from '../common/inline-editor';
+import { ItemSelectionPopover, type ItemSelectionTab } from '../common/item-selection-popover';
+
+function DraggableUserCard({ user, onRemove, isTeamAdmin, onSetAdmin, canManage, memberCount, teamId }: { 
+    user: User;
+    onRemove: () => void;
+    isTeamAdmin: boolean;
+    onSetAdmin: () => void;
+    canManage: boolean;
+    memberCount: number;
+    teamId: string;
+}) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({
+    id: `user-sort:${teamId}:${user.userId}`,
+    data: { type: 'user', user, teamId },
+    disabled: !canManage,
+  });
+  
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    opacity: isDragging ? 0.5 : 1,
+  };
+  
+  return (
+    <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
+        <div 
+            className="group relative flex items-center gap-2 p-1 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring/50 shadow-md bg-card"
+            onClick={(e) => { 
+                if (canManage) {
+                    e.stopPropagation();
+                    onSetAdmin(); 
+                }
+            }}
+            onKeyDown={(e) => { if(canManage && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onSetAdmin();}}}
+            tabIndex={canManage ? 0 : -1}
+        >
+            <div className="relative">
+                <Avatar className="h-8 w-8">
+                    <AvatarImage src={user.avatarUrl} alt={user.displayName} data-ai-hint="user avatar" />
+                    <AvatarFallback>{user.displayName.slice(0, 2).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                {isTeamAdmin && (
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-card flex items-center justify-center bg-primary text-primary-foreground">
+                                    <GoogleSymbol name="key" style={{fontSize: '10px'}} />
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent><p>Team Admin</p></TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                )}
+            </div>
+            <div>
+                <p className="font-normal text-sm text-muted-foreground">{user.displayName}</p>
+                <p className="text-xs text-muted-foreground">{user.title}</p>
+            </div>
+            {canManage && (
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="default"
+                                size="icon"
+                                className="absolute top-0 right-0 h-6 w-6 text-muted-foreground bg-card opacity-0 group-hover:opacity-100"
+                                onClick={(e) => { e.stopPropagation(); onRemove(); }}
+                                onPointerDown={(e) => e.stopPropagation()} // Prevent drag from starting
+                            >
+                                <GoogleSymbol name="cancel" className="text-lg" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent><p>Remove User</p></TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+            )}
+        </div>
+    </div>
+  );
+}
+
+export interface TeamCardProps {
+    team: Team; 
+    users: User[];
+    onUpdate: (id: string, data: Partial<Team>) => void;
+    onDelete: (team: Team) => void;
+    onRemoveUser: (teamId: string, userId: string) => void;
+    onAddUser: (teamId: string, userId: string) => void;
+    onSetAdmin: (teamId: string, userId: string) => void;
+    isSharedPreview?: boolean;
+    isDragging?: boolean;
+    isExpanded: boolean;
+    onToggleExpand: () => void;
+}
+
+export function TeamCard(props: TeamCardProps) {
+    const { 
+        team, 
+        users,
+        onUpdate, 
+        onDelete,
+        onRemoveUser,
+        onAddUser,
+        onSetAdmin,
+        isSharedPreview = false,
+        ...otherProps
+    } = props;
+    const { viewAsUser } = useUser();
+    const { isExpanded, onToggleExpand } = otherProps;
+    
+    const { setNodeRef, isOver } = useDroppable({
+        id: `team-card-droppable:${team.id}`,
+        data: { type: 'team-card-droppable', team: team },
+    });
+
+    const owner = useMemo(() => {
+        return users.find(u => u.userId === team.owner.id);
+    }, [team.owner.id, users]);
+
+    const ownerName = owner?.displayName || 'System';
+
+    const canManageTeam = useMemo(() => {
+        if (isSharedPreview) return false;
+        return team.owner.id === viewAsUser.userId || (team.teamAdmins || []).includes(viewAsUser.userId);
+    }, [team, viewAsUser, isSharedPreview]);
+
+    const teamMembers = useMemo(() => team.members.map(id => users.find(u => u.userId === id)).filter((u): u is User => !!u), [team.members, users]);
+    const availableUsersToAdd = useMemo(() => users.filter(u => !team.members.includes(u.userId)), [users, team.members]);
+
+    let shareIcon: string | null = null;
+    let shareIconTitle: string = '';
+    const shareIconColor = '#64748B';
+    
+    if (team.owner.id === viewAsUser.userId && team.isShared) {
+        shareIcon = 'change_circle';
+        shareIconTitle = `Owned & Shared by You`;
+    } else if (team.owner.id !== viewAsUser.userId && !isSharedPreview) {
+        shareIcon = 'link';
+        shareIconTitle = `Owned by ${ownerName}`;
+    }
+
+    const userSelectionTabs: ItemSelectionTab[] = [
+        {
+            value: 'users',
+            label: 'Users',
+            items: availableUsersToAdd.map(user => ({
+                id: user.userId,
+                name: user.displayName,
+                icon: user.avatarUrl || '',
+                iconType: 'avatar' as const,
+            })),
+            selectedIds: [], // Not used for this single-selection purpose
+        }
+    ];
+
+    const headerControls = (
+        <>
+            {canManageTeam && !isSharedPreview && availableUsersToAdd.length > 0 && (
+                <ItemSelectionPopover
+                    tabs={userSelectionTabs}
+                    onSelectionChange={(_, userId) => onAddUser(team.id, userId)}
+                    trigger={
+                         <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+                            <GoogleSymbol name="group_add" />
+                        </Button>
+                    }
+                    tooltip="Add User to Team"
+                />
+            )}
+        </>
+    );
+
+    const bodyContent = (
+      <div className="space-y-2">
+        <InlineEditor
+          value={team.description || ''}
+          onSave={(newDesc) => onUpdate(team.id, { description: newDesc })}
+          disabled={!canManageTeam}
+          placeholder="Click to add a description..."
+          className="text-sm text-foreground"
+        />
+        {teamMembers.length > 0 && (
+            <ScrollArea className="max-h-48 pr-2 hide-scrollbar">
+                <SortableContext items={teamMembers.map(m => `user-sort:${team.id}:${m.userId}`)} strategy={verticalListSortingStrategy}>
+                    <div className={cn("min-h-[60px] rounded-md p-2 -m-2 space-y-1 transition-colors")}>
+                        {teamMembers.map((user) => (
+                        <DraggableUserCard 
+                            key={user.userId}
+                            user={user}
+                            teamId={team.id}
+                            onRemove={() => onRemoveUser(team.id, user.userId)}
+                            isTeamAdmin={(team.teamAdmins || []).includes(user.userId)}
+                            onSetAdmin={() => onSetAdmin(team.id, user.userId)}
+                            canManage={canManageTeam}
+                            memberCount={team.members.length}
+                        />
+                        ))}
+                    </div>
+                </SortableContext>
+            </ScrollArea>
+        )}
+      </div>
+    );
+
+    return (
+        <div ref={setNodeRef} className={cn(isOver && "ring-2 ring-primary ring-inset rounded-lg")}>
+            <CardTemplate
+                entity={team}
+                onUpdate={onUpdate}
+                onDelete={() => onDelete(team)}
+                canManage={canManageTeam}
+                isExpanded={isExpanded}
+                onToggleExpand={onToggleExpand}
+                isSharedPreview={isSharedPreview}
+                shareIcon={shareIcon || undefined}
+                shareIconTitle={shareIconTitle}
+                shareIconColor={shareIconColor}
+                headerControls={headerControls}
+                body={bodyContent}
+            />
+        </div>
+    );
+}

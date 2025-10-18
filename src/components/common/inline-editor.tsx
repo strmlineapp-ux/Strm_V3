@@ -1,0 +1,108 @@
+
+'use client';
+
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
+
+interface InlineEditorProps {
+  value: string;
+  onSave: (newValue: string) => void;
+  className?: string;
+  placeholder?: string;
+  disabled?: boolean;
+  onClick?: (e: React.MouseEvent) => void;
+}
+
+export function InlineEditor({
+  value,
+  onSave,
+  className,
+  placeholder,
+  disabled = false,
+  onClick
+}: InlineEditorProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [currentValue, setCurrentValue] = useState(value);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setCurrentValue(value);
+  }, [value]);
+  
+  const handleSave = useCallback(() => {
+    if (currentValue.trim() && currentValue.trim() !== value) {
+      onSave(currentValue.trim());
+    }
+    setIsEditing(false);
+  }, [currentValue, value, onSave]);
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  useEffect(() => {
+    if (!isEditing) return;
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (inputRef.current && !inputRef.current.contains(event.target as Node)) {
+        handleSave();
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+    };
+  }, [isEditing, handleSave]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Stop propagation to prevent dnd-kit's keyboard sensors from firing
+    e.stopPropagation(); 
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSave();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setCurrentValue(value); // Revert to original value
+      setIsEditing(false);
+    }
+  };
+
+  const handleDisplayClick = (e: React.MouseEvent) => {
+    if (onClick) onClick(e);
+    if (!disabled) {
+      e.stopPropagation(); // Prevent card drag from starting
+      setIsEditing(true);
+    }
+  };
+
+  if (isEditing) {
+    return (
+      <Input
+        ref={inputRef}
+        value={currentValue}
+        onChange={(e) => setCurrentValue(e.target.value)}
+        onKeyDown={handleKeyDown}
+        onBlur={handleSave}
+        className={cn(
+          "h-auto p-0 border-0 rounded-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none",
+          className
+        )}
+        placeholder={placeholder}
+        onPointerDown={(e) => e.stopPropagation()}
+      />
+    );
+  }
+
+  return (
+    <span
+      onClick={handleDisplayClick}
+      onPointerDown={(e) => e.stopPropagation()}
+      className={cn(className, !disabled && "cursor-text", !value && "italic text-foreground/70")}
+    >
+      {value || placeholder || "Click to edit"}
+    </span>
+  );
+}
