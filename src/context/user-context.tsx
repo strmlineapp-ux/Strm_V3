@@ -14,6 +14,8 @@ import { predefinedColors } from '@/lib/colors';
 import { adjustHslColor } from '@/lib/utils';
 import { collection, doc, writeBatch, getFirestore, getDocs, query, where, addDoc, updateDoc, setDoc, getDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 import { getDb } from '@/lib/firebase';
+import { getOAuth2Client } from '@/lib/google-auth-service';
+import type { User as FirebaseUser } from 'firebase/auth';
 
 // --- Context Definition ---
 interface UserContextType {
@@ -25,6 +27,7 @@ interface UserContextType {
   logout: (router: AppRouterInstance) => Promise<void>;
   loading: boolean;
   isFirebaseReady: boolean;
+  linkGoogleCalendar: (userId: string) => Promise<void>;
 
   // Data & Actions
   holidays: Holiday[];
@@ -121,6 +124,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [viewAsUserId, setViewAsUserId] = useState<string | null>(null);
   const { setTheme, theme: currentTheme } = useTheme();
   const [isDragModifierPressed, setIsDragModifierPressed] = useState(false);
+  const { toast } = useToast();
 
   const loading = authLoading || dataHook.loading;
 
@@ -159,6 +163,29 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         window.removeEventListener('keyup', handleKeyUp);
     };
 }, [viewAsUser]);
+
+  const linkGoogleCalendar = useCallback(async (userId: string) => {
+    try {
+      const oAuth2Client = await getOAuth2Client();
+      const authUrl = oAuth2Client.generateAuthUrl({
+        access_type: 'offline', // Important to get a refresh token
+        scope: [
+          'https://www.googleapis.com/auth/calendar.events', // For creating events (like meet links)
+          'https://www.googleapis.com/auth/calendar.readonly' // For reading events
+        ],
+        state: userId, // Pass the user's ID to identify them in the callback
+        prompt: 'consent' // Re-prompt for consent to ensure refresh token is granted
+      });
+      window.location.href = authUrl;
+    } catch (error) {
+      console.error('Error generating Google auth URL:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Could not initiate Google Calendar connection. Please try again.',
+      });
+    }
+  }, [toast]);
   
   const contextValue = useMemo(() => {
     const setViewAsUserWithReset = (userId: string) => {
@@ -179,6 +206,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       logout,
       loading,
       isFirebaseReady,
+      linkGoogleCalendar,
       ...dataHook,
       addTeam: (teamData: Partial<Omit<Team, 'id'>>) => {
         if (!realUser) return;
@@ -208,7 +236,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       addPreApprovedEmail: (email: string) => dataHook.addPreApprovedEmail(email, realUser!),
     };
   }, [
-    realUser, viewAsUser, googleLogin, logout, loading, isFirebaseReady, dataHook, isDragModifierPressed
+    realUser, viewAsUser, googleLogin, logout, loading, isFirebaseReady, dataHook, isDragModifierPressed, linkGoogleCalendar
   ]);
 
   useEffect(() => {

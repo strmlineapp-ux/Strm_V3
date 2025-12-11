@@ -1,6 +1,6 @@
 
 { pkgs, ... }: {
-  packages = [ pkgs.nodejs_20 ];
+  packages = [ pkgs.nodejs_20 pkgs.gh ];
   idx = {
     extensions = [ "dbaeumer.vscode-eslint" ];
     workspace = {

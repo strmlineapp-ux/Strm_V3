@@ -4,99 +4,86 @@
 import { Toaster } from "@/components/ui/toaster";
 import './globals.css';
 import { UserProvider, useUser } from '@/context/user-context';
-import { Roboto } from 'next/font/google';
 import { ThemeProvider, useTheme } from 'next-themes';
 import React, { useEffect } from 'react';
 import { cn } from '@/lib/utils';
 
-const roboto = Roboto({
-  subsets: ['latin'],
-  weight: ['100', '300', '400', '500', '700'],
-  variable: '--font-roboto',
-});
-
-// This component now directly manages the theme and style effects.
 function AppThemeManager({ children }: { children: React.ReactNode }) {
     const { viewAsUser } = useUser();
     const { setTheme, theme } = useTheme();
 
     useEffect(() => {
-        if (viewAsUser?.theme) {
-            setTheme(viewAsUser.theme);
-        }
-    }, [viewAsUser?.theme, setTheme]);
+        const root = document.documentElement;
+        const currentTheme = theme || 'light';
 
-    useEffect(() => {
         if (viewAsUser) {
-            const root = document.documentElement;
-            
-            const fontWeight = viewAsUser.fontWeight || 400;
-            const isBoldEmphasis = fontWeight >= 700;
+            if (viewAsUser.theme) {
+                setTheme(viewAsUser.theme);
+            }
 
+            const fontWeight = viewAsUser.fontWeight || 400;
             document.body.style.fontWeight = fontWeight.toString();
-            
-            if (isBoldEmphasis) {
+
+            if (fontWeight >= 700) {
                 document.body.classList.add('bold-emphasis');
             } else {
                 document.body.classList.remove('bold-emphasis');
             }
 
             const emphasisWeightMap: { [key: number]: number } = {
-                100: 400,
-                300: 500,
-                400: 700,
-                500: 700,
-                700: 700
+                100: 400, 300: 500, 400: 700, 500: 700, 700: 700
             };
-            const emphasisWeight = emphasisWeightMap[fontWeight] || 500;
-            root.style.setProperty('--font-weight-emphasis', emphasisWeight.toString());
-            
+            root.style.setProperty('--font-weight-emphasis', (emphasisWeightMap[fontWeight] || 500).toString());
+
             root.style.setProperty('--global-icon-weight', fontWeight.toString());
-            
-            const iconGrade = viewAsUser.iconGrade || 0;
-            root.style.setProperty('--global-icon-grade', iconGrade.toString());
+            root.style.setProperty('--global-icon-grade', (viewAsUser.iconGrade || 0).toString());
+            root.style.setProperty('--global-icon-optical-size', (viewAsUser.iconOpticalSize || 24).toString());
+            root.style.setProperty('--global-icon-fill', viewAsUser.iconFill ? '1' : '0');
 
-            const iconOpticalSize = viewAsUser.iconOpticalSize || 24;
-            root.style.setProperty('--global-icon-optical-size', iconOpticalSize.toString());
-
-            const iconFill = viewAsUser.iconFill ? 1 : 0;
-            root.style.setProperty('--global-icon-fill', iconFill.toString());
-            
             if (viewAsUser.iconFill) {
                 document.body.classList.add('icon-fill-emphasis');
             } else {
                 document.body.classList.remove('icon-fill-emphasis');
             }
 
-            const radius = viewAsUser.radius ?? 0.5;
-            root.style.setProperty('--radius', `${radius}rem`);
+            root.style.setProperty('--radius', `${viewAsUser.radius ?? 0.5}rem`);
 
             if (viewAsUser.primaryColor) {
                 const match = viewAsUser.primaryColor.match(/hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)/);
                 if (match) {
-                    const [, h, s, l] = match;
-                    root.style.setProperty('--primary', `${h} ${s}% ${l}%`);
+                    root.style.setProperty('--primary', `${match[1]} ${match[2]}% ${match[3]}%`);
                 }
             } else {
-                 if (theme === 'dark') {
-                    root.style.setProperty('--primary', '25 88% 55%');
-                } else {
-                    root.style.setProperty('--primary', '210 70% 50%');
-                }
+                const defaultPrimary = currentTheme === 'dark' ? '25 88% 55%' : '207 70% 53%';
+                root.style.setProperty('--primary', defaultPrimary);
             }
-            
-            const themeForeground = theme === 'dark' ? '210 7% 60%' : '210 7% 40%';
-            if(viewAsUser.highContrast) {
-                root.style.setProperty('--foreground', theme === 'dark' ? '210 7% 80%' : '210 7% 20%');
-            } else {
-                root.style.setProperty('--foreground', themeForeground);
-            }
+
+            const foregroundColor = viewAsUser.highContrast 
+                ? (currentTheme === 'dark' ? '210 7% 80%' : '210 7% 20%') 
+                : (currentTheme === 'dark' ? '210 7% 60%' : '210 7% 40%');
+            root.style.setProperty('--foreground', foregroundColor);
+
+        } else {
+            // Apply default styles when no user is being viewed
+            const defaultPrimary = currentTheme === 'dark' ? '25 88% 55%' : '207 70% 53%';
+            root.style.setProperty('--primary', defaultPrimary);
+
+            const defaultForeground = currentTheme === 'dark' ? '210 7% 60%' : '210 7% 40%';
+            root.style.setProperty('--foreground', defaultForeground);
+
+            document.body.style.fontWeight = '400';
+            document.body.classList.remove('bold-emphasis', 'icon-fill-emphasis');
+            root.style.setProperty('--font-weight-emphasis', '500');
+            root.style.setProperty('--global-icon-weight', '400');
+            root.style.setProperty('--global-icon-grade', '0');
+            root.style.setProperty('--global-icon-optical-size', '24');
+            root.style.setProperty('--global-icon-fill', '0');
+            root.style.setProperty('--radius', '0.5rem');
         }
-    }, [viewAsUser, theme]);
+    }, [viewAsUser, theme, setTheme]);
     
     return <>{children}</>;
 }
-
 
 export default function RootLayout({
   children,
@@ -106,14 +93,17 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <title>AgileFlow</title>
+        <title>Strm Agile</title>
         <meta name="description" content="Task and Calendar Management for agile teams." />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
         />
+        <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@100;300;400;500;700&display=swap" rel="stylesheet" />
       </head>
-      <body className={cn(roboto.variable, "antialiased")}>
+      <body className={cn("font-body", "antialiased")}>
         <ThemeProvider
             attribute="class"
             defaultTheme="system"
@@ -131,3 +121,4 @@ export default function RootLayout({
     </html>
   );
 }
+

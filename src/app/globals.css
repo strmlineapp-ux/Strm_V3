@@ -13,18 +13,18 @@
   }
   
   :root {
-    --background: 210 20% 95%;
-    --card: 210 20% 98%;
-    --popover: 210 20% 98%;
-    --primary: 210 70% 50%;
+    --background: 207 100% 95%;
+    --card: 207 100% 98%;
+    --popover: 207 100% 98%;
+    --primary: 207 70% 53%;
     --primary-foreground: 0 0% 100%;
     --foreground: 210 7% 40%;
     --popover-foreground: 210 7% 40%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 210 20% 85%;
-    --input: 210 7% 40%;
-    --ring: 210 70% 50%;
+    --border: 207 30% 88%;
+    --input: 207 30% 88%;
+    --ring: 207 70% 53%;
     --radius: 0.5rem;
 
     --font-weight-thin: 100;
@@ -55,11 +55,6 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: var(--font-roboto), sans-serif;
-  }
-  
-  h1, h2, h3, h4, h5, h6 {
-      font-family: var(--font-roboto), sans-serif;
   }
 }
 

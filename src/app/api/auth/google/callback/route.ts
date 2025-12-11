@@ -1,8 +1,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getOAuth2Client, saveCredentials } from '@/lib/google-auth-service';
+import { getOAuth2Client } from '@/lib/google-auth-service';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { getDb } from '@/lib/firebase';
+import { saveCredentials } from '@/lib/google-auth-service-server';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
     const oAuth2Client = await getOAuth2Client();
     const { tokens } = await oAuth2Client.getToken(code);
     
-    // Save the tokens securely against the user's ID
+    // Save the tokens securely against the user's ID using the server-side function
     await saveCredentials(userId, tokens);
     
     // Also update the user's profile to mark the calendar as linked
@@ -35,3 +36,4 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to exchange authorization code for tokens.', details: error.message }, { status: 500 });
   }
 }
+

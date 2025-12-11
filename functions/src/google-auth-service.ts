@@ -1,7 +1,6 @@
 
 'use server';
 import { google } from 'googleapis';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { getFirestore } from 'firebase-admin/firestore';
 import { OAuth2Client, type Credentials } from 'google-auth-library';
 
@@ -35,14 +34,14 @@ export async function getOAuth2Client(): Promise<OAuth2Client> {
  */
 export async function saveCredentials(userId: string, tokens: Credentials): Promise<void> {
   const db = getFirestore();
-  const tokenDocRef = doc(db, 'google-auth-tokens', userId);
+  const tokenDocRef = db.collection('google-auth-tokens').doc(userId);
   
   if (!tokens.access_token) {
     console.warn('Attempted to save credentials without an access token.');
     return;
   }
   
-  await setDoc(tokenDocRef, {
+  await tokenDocRef.set({
     userId,
     ...tokens
   }, { merge: true });
@@ -56,8 +55,8 @@ export async function saveCredentials(userId: string, tokens: Credentials): Prom
  */
 export async function getAuthorizedClient(userId: string): Promise<OAuth2Client> {
   const db = getFirestore();
-  const tokenDocRef = doc(db, 'google-auth-tokens', userId);
-  const tokenDoc = await getDoc(tokenDocRef);
+  const tokenDocRef = db.collection('google-auth-tokens').doc(userId);
+  const tokenDoc = await tokenDocRef.get();
 
   if (!tokenDoc.exists()) {
     throw new Error(`No auth tokens found for user: ${userId}. User needs to sign in again to grant permissions.`);
@@ -73,3 +72,4 @@ export async function getAuthorizedClient(userId: string): Promise<OAuth2Client>
   
   return oAuth2Client;
 }
+

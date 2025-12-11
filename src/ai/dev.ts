@@ -1,7 +1,8 @@
+import { config } from 'dotenv';
+config();
 
-'use server';
-// Flows will be imported for their side effects in this file.
-import './flows/create-meet-link-flow';
-import './flows/sync-calendar-flow';
-import './flows/watch-google-calendar-flow';
-import './flows/link-and-watch-calendar-flow';
+import '@/ai/flows/create-meet-link-flow.ts';
+import '@/ai/flows/link-and-watch-calendar-flow.ts';
+import '@/ai/flows/sync-calendar-flow.ts';
+import '@/ai/flows/watch-google-calendar-flow.ts';
+import '@/ai/flows/generate-google-meet-link.ts';
