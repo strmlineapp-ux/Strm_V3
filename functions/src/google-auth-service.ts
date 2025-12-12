@@ -18,7 +18,7 @@ export async function getOAuth2Client(): Promise<OAuth2Client> {
 
   // This is the function URL for the deployed callback.
   // In a more complex setup, this might be dynamically configured.
-  const redirectUri = `https://us-central1-${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.cloudfunctions.net/googleAuthCallback`;
+  const redirectUri = `https://us-central1-${process.env.GCLOUD_PROJECT}.cloudfunctions.net/googleAuthCallback`;
   
   return new google.auth.OAuth2(
     GOOGLE_CLIENT_ID,
@@ -70,6 +70,29 @@ export async function getAuthorizedClient(userId: string): Promise<OAuth2Client>
   const oAuth2Client = await getOAuth2Client();
   oAuth2Client.setCredentials(tokens as Credentials);
   
+  // Handle token refreshing
+  oAuth2Client.on('tokens', async (newTokens) => {
+    if (newTokens.refresh_token) {
+      // If we get a new refresh token, save it along with the access token
+      await saveCredentials(userId, newTokens);
+    } else {
+      // If we only get a new access token, update just that
+      const currentTokens = oAuth2Client.credentials;
+      await saveCredentials(userId, { ...currentTokens, access_token: newTokens.access_token });
+    }
+  });
+
+  // Check if the token is expired and refresh it if necessary
+  if (oAuth2Client.isTokenExpiring()) {
+    try {
+      const { credentials } = await oAuth2Client.refreshAccessToken();
+      oAuth2Client.setCredentials(credentials);
+      await saveCredentials(userId, credentials);
+    } catch (refreshError) {
+      console.error(`Failed to refresh token for user ${userId}`, refreshError);
+      throw new Error(`Could not refresh authorization for user ${userId}. Please re-authenticate.`);
+    }
+  }
+  
   return oAuth2Client;
 }
-
