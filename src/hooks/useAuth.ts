@@ -150,9 +150,13 @@ export function useAuth() {
     try {
       const oAuth2Client = await getOAuth2Client();
       const authUrl = oAuth2Client.generateAuthUrl({
-        access_type: 'offline',
-        scope: ['https://www.googleapis.com/auth/calendar.readonly'],
+        access_type: 'offline', // Important to get a refresh token
+        scope: [
+          'https://www.googleapis.com/auth/calendar.events', // For creating events (like meet links)
+          'https://www.googleapis.com/auth/calendar.readonly' // For reading events
+        ],
         state: user.uid, // Pass the user's ID to identify them in the callback
+        prompt: 'consent' // Re-prompt for consent to ensure refresh token is granted
       });
       // Redirect the user to the Google authorization page.
       window.location.href = authUrl;
@@ -182,3 +186,5 @@ export function useAuth() {
 
   return { realUser, loading, isFirebaseReady, googleLogin, logout, setRealUser, linkGoogleCalendar };
 }
+
+    

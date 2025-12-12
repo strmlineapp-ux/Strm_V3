@@ -18,18 +18,9 @@ export async function getOAuth2Client(): Promise<OAuth2Client> {
     throw new Error('Google OAuth client environment variables are not set.');
   }
 
-  // Dynamically determine the redirect URI.
-  // VERCEL_URL is provided by Vercel deployments.
-  // NEXT_PUBLIC_URL is for local development via .env.
-  const vercelUrl = process.env.VERCEL_URL;
-  const ngrokUrl = process.env.NGROK_URL; // Studio uses ngrok
-  const baseUrl = ngrokUrl ? `https://${ngrokUrl}` : (vercelUrl ? `https://${vercelUrl}` : process.env.NEXT_PUBLIC_URL);
-  
-  if (!baseUrl) {
-    throw new Error("Could not determine base URL for OAuth redirect URI.");
-  }
-  
-  const redirectUri = `${baseUrl}/api/auth/google/callback`;
+  // This is the function URL for the deployed callback.
+  // In a more complex setup, this might be dynamically configured.
+  const redirectUri = `https://us-central1-${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.cloudfunctions.net/googleAuthCallback`;
   
   console.log(`Using Google OAuth Redirect URI: ${redirectUri}`);
 
@@ -87,3 +78,5 @@ export async function getAuthorizedClient(userId: string): Promise<OAuth2Client>
   
   return oAuth2Client;
 }
+
+    

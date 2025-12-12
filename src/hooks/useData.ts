@@ -712,13 +712,6 @@ export function useData(realUser: User | null, authLoading: boolean) {
     toast({ title: 'Badge Un-assigned', description: `"${badge.name}" removed from ${member.displayName}.`});
   }, [users, updateUser, toast]);
 
-  const linkGoogleCalendar = useCallback(async (userId: string) => {
-    // In a real app, this would trigger the Google OAuth flow.
-    await simulateApi(1000);
-    await updateUser(userId, { googleCalendarLinked: true, accountType: 'Full' });
-    toast({ title: "Success!", description: "Your Google Calendar has been successfully connected." });
-  }, [updateUser, toast]);
-
   const searchSharedTeams = useCallback(async (searchTerm: string): Promise<Team[]> => {
     // In a real app, this might query a specific 'sharedTeams' collection or use a different logic
     await simulateApi();
@@ -801,7 +794,9 @@ export function useData(realUser: User | null, authLoading: boolean) {
     addBadgeCollection, updateBadgeCollection, deleteBadgeCollection, reorderBadgeCollections, addBadge, updateBadge, deleteBadge,
     reorderBadges, handleBadgeAssignment, handleBadgeUnassignment,
     searchSharedTeams,
-    linkGoogleCalendar, predefinedColors,
+    predefinedColors,
     seedDatabase, // Expose seed function
   };
 }
+
+    
