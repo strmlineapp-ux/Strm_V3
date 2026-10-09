@@ -1,54 +1,32 @@
 
-
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useUser } from '@/context/user-context';
-import { type Team, type User, type AppTab, type AppPage, type AppSettings, type BadgeCollectionOwner } from '@/types';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle as UIDialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
+import { type Team, type User, type AppTab, type AppPage } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { cn, getHueFromHsl, isHueInRange } from '@/lib/utils';
 import { GoogleSymbol } from '../icons/google-symbol';
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragStartEvent,
-  type DragEndEvent,
-  useDroppable,
-  DragOverlay,
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
+import { type DragEndEvent } from '@dnd-kit/core';
 import { useRouter, usePathname } from 'next/navigation';
-import { snapCenterToCursor } from '@dnd-kit/modifiers';
-import { DraggableGrid } from '../common/draggable-grid';
-import { CompactSearchInput } from '@/components/common/compact-search-input';
-import { TeamCard } from './team-card';
 import { SortableItem } from '../common/sortable-item';
-import { InlineEditor } from '../common/inline-editor';
-import { ScrollArea } from '../ui/scroll-area';
-import { SharedItemsPanel } from '../common/shared-items-panel';
+import { TeamCard } from './team-card';
 import { ManagementPageLayout } from '../common/management-page-layout';
 
-export function TeamManagement({ tab, page, isSingleTabPage = false, isActive = false, isSharedPanelOpen, setIsSharedPanelOpen, isDragging }: { tab: AppTab; page: AppPage; isSingleTabPage?: boolean; isActive?: boolean; isSharedPanelOpen: boolean; setIsSharedPanelOpen: (isOpen: boolean) => void; isDragging: boolean; }) {
-    const { viewAsUser, users, teams, addTeam, updateTeam, deleteTeam, reorderTeams, updatePage, updateUser } = useUser();
+export function TeamManagement({ tab, page, isActive = false, isSharedPanelOpen, setIsSharedPanelOpen, isDragging }: { tab: AppTab; page: AppPage; isActive?: boolean; isSharedPanelOpen: boolean; setIsSharedPanelOpen: (isOpen: boolean) => void; isDragging: boolean; }) {
+    const { viewAsUser, users, teams, addTeam, updateTeam, deleteTeam, reorderTeams, updatePage, updateUser, fetchTeams, fetchUsers } = useUser();
     const router = useRouter();
     const pathname = usePathname();
     const { toast } = useToast();
     const contextKey = `teams-${page.id}`;
     
+    // Fetch data on mount
+    useEffect(() => {
+        if (isActive) {
+            fetchTeams();
+            fetchUsers();
+        }
+    }, [isActive, fetchTeams, fetchUsers]);
+
     const onToggleExpand = useCallback((teamId: string) => {
         if (!viewAsUser) return;
         const currentState = viewAsUser.expandedCardState || {};
@@ -108,7 +86,7 @@ export function TeamManagement({ tab, page, isSingleTabPage = false, isActive = 
             currentAdmins.add(userId);
         }
         updateTeam(teamId, { teamAdmins: Array.from(currentAdmins) });
-    }, [teams, updateTeam, canManageTeam, toast]);
+    }, [teams, updateTeam, canManageTeam]);
 
     const handleRemoveUserFromTeam = useCallback((teamId: string, userId: string) => {
         const team = teams.find(t => t.id === teamId);
@@ -172,12 +150,10 @@ export function TeamManagement({ tab, page, isSingleTabPage = false, isActive = 
         if ('members' in item) { // It's a Team
             return <GoogleSymbol name={item.icon} style={{ color: item.color, fontSize: '48px' }} />;
         }
-        // It's a User
         return (
-            <Avatar className="h-12 w-12">
-                <AvatarImage src={item.avatarUrl} alt={item.displayName} data-ai-hint="user avatar" />
-                <AvatarFallback>{item.displayName.slice(0, 2).toUpperCase()}</AvatarFallback>
-            </Avatar>
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                <GoogleSymbol name="person" className="text-2xl" />
+            </div>
         );
     };
 

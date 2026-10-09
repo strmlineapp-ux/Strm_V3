@@ -49,8 +49,9 @@ export function useData(realUser: User | null, authLoading: boolean) {
 
   const { toast } = useToast();
   
+  // Initial load: Only fetch user profile and app settings
   useEffect(() => {
-    const loadData = async () => {
+    const loadInitialData = async () => {
         if (authLoading || !realUser || !realUser.workspaceId) {
             if (!authLoading) setLoading(false);
             return;
@@ -61,57 +62,102 @@ export function useData(realUser: User | null, authLoading: boolean) {
           const db = getDb();
           const workspaceId = realUser.workspaceId;
 
-          const collectionsToFetch = ['users', 'teams', 'calendars', 'locations', 'badges', 'badgeCollections', 'projects', 'pages', 'pre-approved-emails'];
-          const queries = collectionsToFetch.map(c => getDocs(query(collection(db, c), where("workspaceId", "==", workspaceId))));
-          
-          const [usersSnapshot, teamsSnap, calendarsSnap, locationsSnap, badgesSnap, collectionsSnap, projectsSnap, pagesSnap, preApprovedEmailsSnap] = await Promise.all(queries);
-          
+          // Fetch only navigation-critical settings first
           const appSettingsSnap = await getDoc(doc(db, 'app-settings', workspaceId));
-          
-          setUsers(usersSnapshot.docs.map(doc => {
-            const data = doc.data();
-            return {
-                ...data,
-                userId: doc.id,
-                createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
-            } as User
-          }));
-          setTeams(teamsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Team)));
-          setProjects(projectsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Project)));
-          setCalendars(calendarsSnap.docs.map(d => ({ id: d.id, ...d.data() } as SharedCalendar)));
-          setLocations(locationsSnap.docs.map(d => ({ id: d.id, ...d.data() } as BookableLocation)));
-          setAllBadges(badgesSnap.docs.map(d => ({ id: d.id, ...d.data() } as Badge)));
-          setAllBadgeCollections(collectionsSnap.docs.map(d => ({ id: d.id, ...d.data() } as BadgeCollection)));
-          setPreApprovedEmails(preApprovedEmailsSnap.docs.map(d => ({...d.data(), createdAt: d.data().createdAt.toDate()} as PreApprovedEmail)));
+          const pagesSnap = await getDocs(query(collection(db, 'pages'), where("workspaceId", "==", workspaceId)));
           
           const userCreatedPages = pagesSnap.docs.map(d => ({ id: d.id, ...d.data() } as AppPage));
-          setAllPages([...systemPages, ...userCreatedPages]);
+          const combinedPages = [...systemPages, ...userCreatedPages];
+          setAllPages(combinedPages);
 
           if (appSettingsSnap.exists()) {
-            const settingsData = appSettingsSnap.data() as Omit<AppSettings, 'preApprovedEmails'>;
+            const settingsData = appSettingsSnap.data() as AppSettings;
               setAppSettings({
                 ...settingsData,
-                pages: [...systemPages, ...userCreatedPages]
+                pages: combinedPages
               });
           } else {
              const newAppSettings = {
                 tabs: coreTabs.map(t => ({...t, workspaceId})),
                 workspaceId,
-                pages: []
+                pages: combinedPages
             };
             await setDoc(doc(db, 'app-settings', workspaceId), newAppSettings);
             setAppSettings(newAppSettings);
           }
         } catch (error) {
-          console.error("Error loading data:", error);
-          toast({ variant: 'destructive', title: "Error", description: "Failed to load application data." });
+          console.error("Error loading initial data:", error);
+          toast({ variant: 'destructive', title: "Error", description: "Failed to load application settings." });
         } finally {
           setLoading(false);
         }
     };
-    loadData();
+    loadInitialData();
   }, [realUser, authLoading, toast]);
 
+  // On-demand fetchers
+  const fetchTeams = useCallback(async () => {
+    if (!realUser?.workspaceId) return [];
+    const db = getDb();
+    const snap = await getDocs(query(collection(db, 'teams'), where("workspaceId", "==", realUser.workspaceId)));
+    const fetched = snap.docs.map(d => ({ id: d.id, ...d.data() } as Team));
+    setTeams(fetched);
+    return fetched;
+  }, [realUser?.workspaceId]);
+
+  const fetchCalendars = useCallback(async () => {
+    if (!realUser?.workspaceId) return [];
+    const db = getDb();
+    const snap = await getDocs(query(collection(db, 'calendars'), where("workspaceId", "==", realUser.workspaceId)));
+    const fetched = snap.docs.map(d => ({ id: d.id, ...d.data() } as SharedCalendar));
+    setCalendars(fetched);
+    return fetched;
+  }, [realUser?.workspaceId]);
+
+  const fetchProjects = useCallback(async () => {
+    if (!realUser?.workspaceId) return [];
+    const db = getDb();
+    const snap = await getDocs(query(collection(db, 'projects'), where("workspaceId", "==", realUser.workspaceId)));
+    const fetched = snap.docs.map(d => ({ id: d.id, ...d.data() } as Project));
+    setProjects(fetched);
+    return fetched;
+  }, [realUser?.workspaceId]);
+
+  const fetchUsers = useCallback(async () => {
+    if (!realUser?.workspaceId) return [];
+    const db = getDb();
+    const snap = await getDocs(query(collection(db, 'users'), where("workspaceId", "==", realUser.workspaceId)));
+    const fetched = snap.docs.map(doc => ({
+      ...doc.data(),
+      userId: doc.id,
+      createdAt: doc.data().createdAt?.toDate ? doc.data().createdAt.toDate() : new Date(),
+    } as User));
+    setUsers(fetched);
+    return fetched;
+  }, [realUser?.workspaceId]);
+
+  const fetchBadgeCollections = useCallback(async () => {
+    if (!realUser?.workspaceId) return [];
+    const db = getDb();
+    const [badgesSnap, collectionsSnap] = await Promise.all([
+        getDocs(query(collection(db, 'badges'), where("workspaceId", "==", realUser.workspaceId))),
+        getDocs(query(collection(db, 'badgeCollections'), where("workspaceId", "==", realUser.workspaceId)))
+    ]);
+    const fetchedBadges = badgesSnap.docs.map(d => ({ id: d.id, ...d.data() } as Badge));
+    const fetchedCollections = collectionsSnap.docs.map(d => ({ id: d.id, ...d.data() } as BadgeCollection));
+    setAllBadges(fetchedBadges);
+    setAllBadgeCollections(fetchedCollections);
+    return fetchedCollections;
+  }, [realUser?.workspaceId]);
+
+  const fetchPreApprovedEmails = useCallback(async () => {
+    if (!realUser?.workspaceId) return [];
+    const db = getDb();
+    const snap = await getDocs(query(collection(db, 'pre-approved-emails'), where("workspaceId", "==", realUser.workspaceId)));
+    const fetched = snap.docs.map(d => ({ ...d.data(), createdAt: d.data().createdAt?.toDate() } as PreApprovedEmail));
+    setPreApprovedEmails(fetched);
+    return fetched;
+  }, [realUser?.workspaceId]);
 
   const allBookableLocations = useMemo(() => {
     const globalLocations = locations.map(l => ({ id: l.id, name: l.name }));
@@ -141,8 +187,6 @@ export function useData(realUser: User | null, authLoading: boolean) {
   }, []);
   
   const reorderUsers = useCallback(async (reorderedUsers: User[]) => {
-      // In a real app, this might update a 'sortOrder' field in Firestore
-      await simulateApi();
       setUsers([...reorderedUsers]);
   }, []);
   
@@ -258,8 +302,6 @@ export function useData(realUser: User | null, authLoading: boolean) {
   }, [appSettings, toast, teams]);
 
   const reorderTeams = useCallback(async (reorderedTeams: Team[]) => {
-      // In a real app, this might update a 'sortOrder' field in Firestore
-      await simulateApi();
       setTeams([...reorderedTeams]);
   }, []);
   
@@ -325,8 +367,6 @@ export function useData(realUser: User | null, authLoading: boolean) {
   }, []);
   
   const reorderCalendars = useCallback(async (reorderedCalendars: SharedCalendar[]) => {
-      // In a real app, this might update a 'sortOrder' field in Firestore
-      await simulateApi();
       setCalendars([...reorderedCalendars]);
   }, []);
 
@@ -442,7 +482,6 @@ export function useData(realUser: User | null, authLoading: boolean) {
   }, []);
   
   const reorderPages = useCallback(async (reorderedPages: AppPage[]) => {
-    await simulateApi();
     const systemPageIds = new Set(systemPages.map(p => p.id));
     const userPages = reorderedPages.filter(p => !systemPageIds.has(p.id));
     const newPageOrder = [...systemPages, ...userPages];
@@ -568,7 +607,6 @@ export function useData(realUser: User | null, authLoading: boolean) {
   }, [allBadgeCollections, allBadges]);
   
   const reorderBadgeCollections = useCallback(async (reorderedCollections: BadgeCollection[]) => {
-      await simulateApi();
       setAllBadgeCollections([...reorderedCollections]);
   }, []);
 
@@ -713,8 +751,6 @@ export function useData(realUser: User | null, authLoading: boolean) {
   }, [users, updateUser, toast]);
 
   const searchSharedTeams = useCallback(async (searchTerm: string): Promise<Team[]> => {
-    // In a real app, this might query a specific 'sharedTeams' collection or use a different logic
-    await simulateApi();
     return teams.filter(team => team.isShared && team.name.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [teams]);
   
@@ -772,7 +808,6 @@ export function useData(realUser: User | null, authLoading: boolean) {
   }, []);
 
 
-  // A placeholder for seeding the database if it's empty
   const seedDatabase = useCallback(async () => {
     console.log("Seeding is not implemented for live Firestore connection.");
   }, []);
@@ -795,8 +830,13 @@ export function useData(realUser: User | null, authLoading: boolean) {
     reorderBadges, handleBadgeAssignment, handleBadgeUnassignment,
     searchSharedTeams,
     predefinedColors,
-    seedDatabase, // Expose seed function
+    seedDatabase,
+    // Add on-demand fetchers to context
+    fetchTeams,
+    fetchCalendars,
+    fetchProjects,
+    fetchUsers,
+    fetchBadgeCollections,
+    fetchPreApprovedEmails,
   };
 }
-
-    

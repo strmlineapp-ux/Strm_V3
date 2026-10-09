@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useUser } from '@/context/user-context';
 import { type SharedCalendar, type AppTab, type AppPage } from '@/types';
 import { useToast } from '@/hooks/use-toast';
@@ -14,7 +14,6 @@ import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/comp
 import { ManagementPageLayout } from '../common/management-page-layout';
 import { SortableItem } from '../common/sortable-item';
 import { InlineEditor } from '../common/inline-editor';
-import { PageTitle } from '../common/page-title';
 import { linkAndWatchCalendar } from '@/ai/flows/link-and-watch-calendar-flow';
 
 function CalendarCard({
@@ -41,7 +40,7 @@ function CalendarCard({
   
   const canManage = useMemo(() => !isSharedPreview && viewAsUser.userId === calendar.owner?.id, [isSharedPreview, viewAsUser, calendar]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (isLinkDialogOpen) {
       setTimeout(() => linkDialogInputRef.current?.focus(), 100);
     }
@@ -155,10 +154,17 @@ function CalendarCard({
 
 
 export function CalendarManagement({ tab, page, isActive, isSharedPanelOpen, setIsSharedPanelOpen, isDragging }: { tab: AppTab; page: AppPage, isActive?: boolean, isSharedPanelOpen: boolean, setIsSharedPanelOpen: (isOpen: boolean) => void, isDragging: boolean }) {
-  const { viewAsUser, calendars, addCalendar, updateCalendar, deleteCalendar, updatePage, updateUser, reorderCalendars } = useUser();
+  const { viewAsUser, calendars, addCalendar, updateCalendar, deleteCalendar, updatePage, updateUser, reorderCalendars, fetchCalendars } = useUser();
   const { toast } = useToast();
   const contextKey = `calendars-${page.id}`;
   
+  // Fetch data on mount
+  useEffect(() => {
+    if (isActive) {
+        fetchCalendars();
+    }
+  }, [isActive, fetchCalendars]);
+
   const onToggleExpand = useCallback((calendarId: string) => {
     if (!viewAsUser) return;
       const currentState = viewAsUser.expandedCardState || {};
@@ -273,5 +279,3 @@ export function CalendarManagement({ tab, page, isActive, isSharedPanelOpen, set
     />
   );
 }
-
-    

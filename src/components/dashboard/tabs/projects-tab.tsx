@@ -1,8 +1,7 @@
 
-
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useUser } from '@/context/user-context';
 import { type Project } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -46,10 +45,15 @@ function ProjectForm({ onSave, onClose, project }: { onSave: (projectData: Parti
 }
 
 export function ProjectsContent() {
-  const { viewAsUser, projects, addProject, updateProject, deleteProject } = useUser();
+  const { viewAsUser, projects, addProject, updateProject, deleteProject, fetchProjects } = useUser();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const router = useRouter();
+
+  // Fetch on mount
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
 
   const ownedProjects = useMemo(() => {
     if (!viewAsUser) return [];
@@ -106,7 +110,7 @@ export function ProjectsContent() {
                    <TooltipProvider>
                       <Tooltip>
                           <TooltipTrigger asChild>
-                              <Button variant="default" size="icon" onClick={(e) => { e.stopPropagation(); updateProject(project.id, { isShared: !project.isShared }); }}>
+                              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); updateProject(project.id, { isShared: !project.isShared }); }}>
                                   <GoogleSymbol name={project.isShared ? 'share' : 'share_off'} />
                               </Button>
                           </TooltipTrigger>
@@ -115,8 +119,8 @@ export function ProjectsContent() {
                           </TooltipContent>
                       </Tooltip>
                    </TooltipProvider>
-                  <Button variant="default" size="icon" onClick={(e) => { e.stopPropagation(); handleEdit(project);}}><GoogleSymbol name="edit" /></Button>
-                  <Button variant="default" size="icon" onClick={(e) => { e.stopPropagation(); deleteProject(project.id);}}><GoogleSymbol name="delete" className="text-destructive" /></Button>
+                  <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEdit(project);}}><GoogleSymbol name="edit" /></Button>
+                  <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); deleteProject(project.id);}}><GoogleSymbol name="delete" className="text-destructive" /></Button>
                 </div>
               </div>
             ))}
@@ -124,7 +128,6 @@ export function ProjectsContent() {
           </div>
         </CardContent>
       </Card>
-      {/* TODO: Add section for linked projects */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent>
             <ProjectForm 

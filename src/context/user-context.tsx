@@ -8,13 +8,8 @@ import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.
 import { useAuth } from '@/hooks/useAuth';
 import { useData } from '@/hooks/useData';
 import { useTheme } from 'next-themes';
-import { arrayMove } from '@dnd-kit/sortable';
-import { googleSymbolNames } from '@/lib/google-symbols';
-import { predefinedColors } from '@/lib/colors';
-import { adjustHslColor } from '@/lib/utils';
 import { collection, doc, writeBatch, getFirestore, getDocs, query, where, addDoc, updateDoc, setDoc, getDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 import { getDb } from '@/lib/firebase';
-import { getOAuth2Client } from '@/lib/google-auth-service';
 import type { User as FirebaseUser } from 'firebase/auth';
 
 // --- Context Definition ---
@@ -46,6 +41,14 @@ interface UserContextType {
   userStatusAssignments: Record<string, UserStatusAssignment[]>;
   setUserStatusAssignments: React.Dispatch<React.SetStateAction<Record<string, UserStatusAssignment[]>>>;
   handleApproveAccessRequest: (notificationId: string, approved: boolean) => Promise<void>;
+
+  // On-demand fetchers
+  fetchTeams: () => Promise<Team[]>;
+  fetchCalendars: () => Promise<SharedCalendar[]>;
+  fetchProjects: () => Promise<Project[]>;
+  fetchUsers: () => Promise<User[]>;
+  fetchBadgeCollections: () => Promise<BadgeCollection[]>;
+  fetchPreApprovedEmails: () => Promise<PreApprovedEmail[]>;
 
   // CRUD functions
   seedDatabase: () => Promise<void>;
@@ -108,21 +111,11 @@ interface UserContextType {
 
 const UserContext = createContext<UserContextType | null>(null);
 
-const randomDescriptions = [
-    "Manage project assets and timelines.",
-    "Track team progress and upcoming deadlines.",
-    "A space for creative collaboration.",
-    "The central hub for all client-related information.",
-    "Planning and execution of marketing campaigns.",
-    "Development and testing for the new feature.",
-];
-
 export function UserProvider({ children }: { children: React.ReactNode }) {
   const { realUser, loading: authLoading, isFirebaseReady, googleLogin, logout, linkGoogleCalendar } = useAuth();
   const dataHook = useData(realUser, authLoading);
   
   const [viewAsUserId, setViewAsUserId] = useState<string | null>(null);
-  const { setTheme, theme: currentTheme } = useTheme();
   const [isDragModifierPressed, setIsDragModifierPressed] = useState(false);
   const { toast } = useToast();
 
@@ -216,12 +209,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     realUser, viewAsUser, googleLogin, logout, loading, isFirebaseReady, dataHook, isDragModifierPressed, linkGoogleCalendar
   ]);
 
-  useEffect(() => {
-    if (dataHook.allPages && dataHook.appSettings.tabs) {
-        dataHook.setAppSettings(current => ({...current, pages: dataHook.allPages }));
-    }
-  }, [dataHook.allPages, dataHook.setAppSettings]);
-
   return (
     <UserContext.Provider value={contextValue}>
         {children}
@@ -234,5 +221,3 @@ export function useUser() {
   if (!context) throw new Error('useUser must be used within a UserProvider');
   return context;
 }
-
-    
